@@ -1,0 +1,43 @@
+const { test, expect } = require('@playwright/test');
+test.use({
+  browserName: 'chromium',
+  viewport: null, // Disable default viewport to allow full-screen
+});
+
+test('Navigate to AICPA & CIMA, accept cookies, and click Register now in full-screen mode', async ({ browser, page }) => {
+  // Launch a new page
+  await page.bringToFront(); // Ensure the page is in focus (helpful in headed mode)
+
+  // Navigate to the AICPA & CIMA homepage
+  await page.goto('https://www.aicpa-cima.com/');
+
+  // Enter full-screen mode using requestFullscreen
+  await page.evaluate(() => {
+    document.documentElement.requestFullscreen();
+  });
+
+  // Accept cookies if the "Accept All" button is present
+  const acceptAllButton = page.locator('#onetrust-accept-btn-handler');
+  if (await acceptAllButton.isVisible()) {
+    await acceptAllButton.click();
+
+    // Verify the button is no longer visible (cookie banner dismissed)
+    await expect(acceptAllButton).not.toBeVisible({ timeout: 5000 });
+    console.log('Verified: "Accept All" button is no longer visible, indicating cookies were accepted.');
+  } else {
+    console.log('No "Accept All" button visible, cookies may already be accepted.');
+  }
+
+  await page.waitForLoadState('load'); // Wait for the page to fully load
+
+  // Find and click the "Register now" button in the carousel
+  const registerButton = page.locator('li.react-multi-carousel-item.react-multi-carousel-item--active a[data-testid="button-button-welcome-block"] > span');
+  await registerButton.waitFor({ state: 'visible', timeout: 90000 });
+  await page.waitForTimeout(1000); // Delay to ensure stability
+  await registerButton.click();
+
+  // Verify redirection to the conference page
+  await expect(page).toHaveURL(/.*cfo-conference/);
+ await page.screenshot({ path: 'screenshots/register-now-clicked.png' });
+  console.log('Verified: Successfully clicked "Register now" and navigated to conference page.');
+});
